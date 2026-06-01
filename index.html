@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사건수첩: 판결의 조건</title>
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+
+  <!-- 이의제기 연출용 화면 플래시 레이어 -->
+  <div id="objection-flash" class="objection-flash"></div>
+
+  <!-- 1. 로그인 스크린 -->
+  <div id="login-screen" class="screen active">
+    <div class="brand-title">
+      <h1>사건수첩: 판결의 조건</h1>
+      <p>실시간 사법 리터러시 모의재판 플랫폼</p>
+    </div>
+    
+    <div class="login-container glass-card">
+      <div class="login-tabs">
+        <button id="tab-student-btn" class="login-tab-btn active" onclick="switchLoginTab('student')">학생 접속</button>
+        <button id="tab-teacher-btn" class="login-tab-btn" onclick="switchLoginTab('teacher')">교사 로그인</button>
+      </div>
+      
+      <div class="login-content">
+        <!-- 학생 로그인 폼 -->
+        <form id="student-login-form" onsubmit="handleStudentLogin(event)">
+          <div class="form-group">
+            <label for="student-session-code">6자리 수업 세션 번호</label>
+            <input type="number" id="student-session-code" placeholder="교사가 공유한 6자리 코드 입력" required min="100000" max="999999">
+          </div>
+          <div class="form-group">
+            <label for="student-name">본인 이름</label>
+            <input type="text" id="student-name" placeholder="이름 입력 (예: 홍길동)" required maxlen="10">
+          </div>
+          <button type="submit" class="primary" style="width: 100%; height: 48px;">법정 입장하기</button>
+        </form>
+
+        <!-- 교사 로그인 폼 -->
+        <form id="teacher-login-form" onsubmit="handleTeacherLogin(event)" style="display: none;">
+          <div class="form-group text-center" style="display: flex; flex-direction: column; align-items: center;">
+            <label for="teacher-pin" style="font-size: 15px; margin-bottom: 12px; color: var(--accent-blue);">교사 인증 PIN 번호</label>
+            <input type="password" id="teacher-pin" placeholder="PIN 번호 입력" required style="text-align: center; font-size: 22px; letter-spacing: 8px; width: 80%; padding: 14px; max-width: 320px;">
+          </div>
+          <div style="display: flex; justify-content: center; width: 100%; margin-top: 25px;">
+            <button type="submit" class="primary" style="width: 80%; max-width: 320px; height: 52px; font-size: 16px;">교사 대시보드 개설</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 학생 대기실 (역할 배정 전) -->
+  <div id="waiting-screen" class="screen">
+    <div class="waiting-card glass-card">
+      <div class="brand-title">
+        <h2 style="color: var(--accent-gold); font-size: 1.8rem; margin-bottom: 5px;">모의재판 대기실</h2>
+        <p style="font-size: 0.9rem;">배정 중인 세션: <span id="wait-session-code" style="color: var(--accent-blue-mid); font-weight: bold; cursor: pointer; padding: 4px 10px; background: var(--bg-tertiary); border-radius: 6px; border: 1px solid rgba(37,99,235,0.15);" onclick="copySessionCode()" title="클릭하면 클립보드에 복사됩니다">000000</span></p>
+      </div>
+      
+      <div class="waiting-spinner"></div>
+      
+      <div id="wait-status-box">
+        <p style="font-size: 15px; font-weight: 500;">교사의 역할 배정을 기다리고 있습니다...</p>
+        <p id="my-assigned-badge" style="margin-top: 15px; font-size: 13px; color: var(--accent-gold-light); display: none;"></p>
+      </div>
+
+      <div class="role-select-explanation" style="border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 10px;">
+        <h4 style="font-size: 12px; color: var(--accent-gold); text-align: left; margin-bottom: 10px;">모의재판 구성원 역할 안내</h4>
+        <div class="role-select-grid">
+          <div class="role-card-select">
+            <h5>공격 모둠 (검사)</h5>
+            <p>기조대변인, 증거분석관, 반박전략가, 최종변론가</p>
+          </div>
+          <div class="role-card-select">
+            <h5>방어 모둠 (변호인)</h5>
+            <p>기조답변인, 증거감시관, 방어논증가, 최종변론가</p>
+          </div>
+          <div class="role-card-select" style="grid-column: span 2;">
+            <h5>배심원단 (관전 및 평결)</h5>
+            <p>재판 과정을 모니터링하며 의견 피드를 올리고, 최종 유무죄 투표 진행</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 교사 대시보드 스크린 -->
+  <div id="teacher-screen" class="screen">
+    <!-- 헤더 -->
+    <header class="app-header">
+      <div class="session-info-badge">
+        <span style="font-size: 14px; font-weight: bold; color: var(--accent-gold);">수업 세션 코드</span>
+        <div id="session-code-val" class="session-code-display" onclick="copySessionCode()" title="클릭하면 클립보드에 복사됩니다">------</div>
+      </div>
+      
+      <!-- 교사용 단계 전환 내비게이션 -->
+      <div class="timeline-tracker" style="flex: 1; margin: 0 40px; justify-content: space-around;">
+        <div class="timeline-step active" data-stage="1" onclick="teacherChangeStage(1)" title="도입부">1</div>
+        <div class="timeline-step" data-stage="2" onclick="teacherChangeStage(2)" title="기조진술">2</div>
+        <div class="timeline-step" data-stage="3" onclick="teacherChangeStage(3)" title="증거조사">3</div>
+        <div class="timeline-step" data-stage="4" onclick="teacherChangeStage(4)" title="공방">4</div>
+        <div class="timeline-step" data-stage="5" onclick="teacherChangeStage(5)" title="최종변론">5</div>
+        <div class="timeline-step" data-stage="6" onclick="teacherChangeStage(6)" title="평결">6</div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button id="teacher-timer-btn" onclick="toggleTeacherTimer()" class="primary">타이머 시작</button>
+        <button onclick="triggerPrintReport()" style="background: var(--color-jury); color: #fff;">최종 판결문 인쇄</button>
+        <button onclick="handleLogout()" style="background: rgba(239, 68, 68, 0.2); color: var(--color-defense);">로그아웃</button>
+      </div>
+    </header>
+
+    <div class="teacher-main-layout">
+      <!-- 교사 좌측 진도 및 데이터 실시간 작성 현황 모니터링 -->
+      <div class="teacher-left-panel">
+        <div class="stage-control-card glass-card">
+          <div>
+            <h3 id="teacher-current-stage-title" style="color: var(--accent-gold-light); font-size: 1.3rem;">1단계: 도입부 사건 스토리 확인</h3>
+            <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">교사는 단계를 클릭하거나 강제 전환 버튼으로 실시간 화면을 통제합니다.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <input type="number" id="teacher-timer-duration" value="300" style="width: 80px; text-align: center;" title="타이머 시간 설정 (초)">
+            <button onclick="teacherSetTimer()">시간 설정</button>
+            <button id="teacher-next-stage-btn" onclick="teacherNextStage()" class="primary">다음 단계로 강제 전환 &gt;</button>
+          </div>
+        </div>
+
+        <!-- 🚨 교사용 이의제기 중재 팝업 보드 -->
+        <div id="teacher-objection-decision-panel" class="glass-card" style="display: none; border-color: var(--color-defense); background: rgba(239, 68, 68, 0.05);">
+          <div class="flex-row-between" style="border-bottom: 1px solid var(--color-defense); padding-bottom: 10px; margin-bottom: 10px;">
+            <h3 style="color: var(--color-defense); display: flex; align-items: center; gap: 8px;">
+              <span class="feed-pulse-dot"></span> 🚨 실시간 이의제기(Objection) 접수됨!
+            </h3>
+            <span id="objection-time-badge" style="font-size: 11px; color: var(--text-muted);">방금 전</span>
+          </div>
+          <div style="margin-bottom: 15px; font-size: 13.5px; line-height: 1.5;">
+            <p><b>이의제기 증거:</b> <span id="objection-target-evidence-name" style="color: var(--accent-gold-light); font-weight: bold;">증거명</span></p>
+            <p><b>주장하는 위법 유형:</b> <span id="objection-violation-type" style="color: var(--color-defense); font-weight: bold;">위법 내용</span></p>
+            <p><b>방어 측 논증 내용:</b> <span id="objection-comment" style="font-style: italic;">"입력된 구체적 이유"</span></p>
+          </div>
+          <div class="flex-row-between">
+            <p style="font-size: 11px; color: var(--text-muted);">교사는 재판장으로서 양측 발언을 듣고 이의제기를 판결해 주십시오.</p>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="resolveObjection('sustained')" class="primary" style="background: linear-gradient(135deg, #10b981, #064e3b); color: #fff; border-color: #34d399;">이의제기 인용 (증거 배제)</button>
+              <button onclick="resolveObjection('overruled')" style="background: linear-gradient(135deg, #ef4444, #7f1d1d); color: #fff; border-color: #f87171;">이의제기 기각 (증거 채택)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 실시간 모둠 협업 및 프리라이더 감시 판넬 -->
+        <div class="glass-card" style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+          <h3 style="color: var(--accent-gold); font-size: 1.1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">
+            실시간 모둠별 협업 진척도 & 작성 모니터링
+          </h3>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; overflow: hidden;">
+            <!-- 공격 모둠 진척도 -->
+            <div style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 5px;">
+              <h4 style="color: var(--color-prosecution); font-weight: bold; border-left: 3px solid var(--color-prosecution); padding-left: 8px;">공격 모둠 (검사 측) 작성물</h4>
+              <div id="teacher-monitor-prosecution" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+            <!-- 방어 모둠 진척도 -->
+            <div style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 5px;">
+              <h4 style="color: var(--color-defense); font-weight: bold; border-left: 3px solid var(--color-defense); padding-left: 8px;">방어 모둠 (변호인 측) 작성물</h4>
+              <div id="teacher-monitor-defense" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- JS 동적 생성 -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 교사 우측 모둠 배치 패널 -->
+      <div class="teacher-right-panel">
+        <div class="panel-header">
+          <h3>수업 접속자 현황 및 모둠 배정</h3>
+          <button onclick="autoAssignStudents()" style="font-size: 11px; padding: 4px 10px;">자동 배정</button>
+        </div>
+        
+        <div class="student-matching-container">
+          <!-- 대기실 / 미배정 -->
+          <div class="matching-bucket unassigned" id="bucket-unassigned" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'unassigned', null)">
+            <h4>미매칭 대기 학생 (<span id="count-unassigned">0</span>명)</h4>
+            <div class="bucket-list" id="list-unassigned"></div>
+          </div>
+
+          <!-- 공격 모둠 구성원 -->
+          <div class="matching-bucket prosecution">
+            <h4 style="color: var(--color-prosecution);">공격 모둠 (검사 측)</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'prosecution', 'speaker')">
+                <span class="role-title-span">① 기조 대변인:</span>
+                <div id="role-prosecution-speaker" class="bucket-list role-dropzone"></div>
+              </div>
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'prosecution', 'analyst')">
+                <span class="role-title-span">② 증거 분석관:</span>
+                <div id="role-prosecution-analyst" class="bucket-list role-dropzone"></div>
+              </div>
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'prosecution', 'strategist')">
+                <span class="role-title-span">③ 반박 전략가:</span>
+                <div id="role-prosecution-strategist" class="bucket-list role-dropzone"></div>
+              </div>
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'prosecution', 'finalist')">
+                <span class="role-title-span">④ 최종 변론가:</span>
+                <div id="role-prosecution-finalist" class="bucket-list role-dropzone"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 방어 모둠 구성원 -->
+          <div class="matching-bucket defense">
+            <h4 style="color: var(--color-defense);">방어 모둠 (변호인 측)</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'defense', 'speaker')">
+                <span class="role-title-span">① 기조 답변인:</span>
+                <div id="role-defense-speaker" class="bucket-list role-dropzone"></div>
+              </div>
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'defense', 'guard')">
+                <span class="role-title-span">② 증거 감시관:</span>
+                <div id="role-defense-guard" class="bucket-list role-dropzone"></div>
+              </div>
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'defense', 'arguer')">
+                <span class="role-title-span">③ 방어 논증가:</span>
+                <div id="role-defense-arguer" class="bucket-list role-dropzone"></div>
+              </div>
+              <div class="matching-row" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'defense', 'finalist')">
+                <span class="role-title-span">④ 최종 변론가:</span>
+                <div id="role-defense-finalist" class="bucket-list role-dropzone"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 배심원단 -->
+          <div class="matching-bucket jury" id="bucket-jury" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'jury', 'juror')">
+            <h4 style="color: var(--color-jury);">나머지 학생들 (배심원 관전 모드 - <span id="count-jury">0</span>명)</h4>
+            <div class="bucket-list" id="list-jury" style="min-height: 60px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 메인 법정 대시보드 (학생용 & 배심원용 워크스페이스) -->
+  <div id="trial-screen" class="screen">
+    <!-- 헤더 -->
+    <header class="app-header">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <span style="font-weight: 800; font-size: 18px; color: var(--accent-gold-light);">사건수첩: 판결의 조건</span>
+        <span id="student-role-indicator-badge" style="font-size: 11px; background: var(--bg-tertiary); border: 1px solid var(--accent-gold); padding: 4px 10px; border-radius: 20px;">검사 - 기조대변인 (홍길동)</span>
+      </div>
+      
+      <div class="session-info-badge">
+        <span style="font-size: 12px; color: var(--text-muted); margin-right: 4px;">세션 번호</span>
+        <span id="student-session-code-val" style="color: var(--accent-blue-mid); font-weight: bold; font-family: 'Outfit'; cursor: pointer; padding: 4px 10px; background: var(--bg-tertiary); border-radius: 6px; border: 1px solid rgba(37,99,235,0.15);" onclick="copySessionCode()" title="클릭하면 클립보드에 복사됩니다">000000</span>
+      </div>
+    </header>
+
+    <div class="trial-layout">
+      <!-- 좌측 고정 패널: 진도, 타이머, 실시간 라이브 피드 -->
+      <div class="trial-left-panel">
+        <div class="trial-state-summary">
+          <div class="stage-badge-large" id="trial-stage-label">1단계: 도입부 사건 요약</div>
+          <div class="timer-countdown" id="trial-timer-val">05:00</div>
+        </div>
+        
+        <!-- 실시간 피드 창 (이의제기, 제출 소식, 배심원단 의견 종합 유성 피드) -->
+        <div class="live-feed-container">
+          <div class="live-feed-header">
+            <span class="feed-pulse-dot"></span> 법정 실시간 피드
+          </div>
+          <div class="feed-messages-box" id="trial-feed-box">
+            <!-- 실시간 이벤트 로그 동적 생성 -->
+          </div>
+          
+          <!-- 배심원 전용 실시간 관전평 작성 패널 -->
+          <div id="juror-chat-panel" style="border-top: 1px solid var(--glass-border); padding-top: 10px; display: none;">
+            <form id="juror-chat-form" onsubmit="submitJurorOpinion(event)" style="display: flex; gap: 6px;">
+              <input type="text" id="juror-chat-input" placeholder="배심원 실시간 관전평 입력..." maxlen="40">
+              <button type="submit" style="padding: 0 10px; font-size: 11px;">전송</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- 중앙 패널: 역할 및 재판 단계별 개인 워크스페이스 -->
+      <div class="trial-center-panel" id="trial-workspace">
+        <!-- 동적으로 역할 및 단계에 맞는 작성 양식 렌더링 -->
+      </div>
+      
+      <!-- 우측 접이식(Sliding Card) 미니 법전 사이드바 -->
+      <div class="lawbook-slider" id="lawbook-panel">
+        <div class="lawbook-handle" onclick="toggleLawbook()">
+          ⚖️ 미니 법전 펼치기
+        </div>
+        <div class="lawbook-header">
+          <h3>📖 모의재판 미니 법전</h3>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">수업에 필요한 핵심 헌법 및 법률 조항 요약</p>
+        </div>
+        <div class="lawbook-body">
+          <div class="law-article">
+            <h4>헌법 제12조 제3항 (영장주의)</h4>
+            <p>체포·구속·압수 또는 수색을 할 때에는 적법한 절차에 따라 검사의 신청에 의하여 법관이 발부한 영장을 제시하여야 한다.</p>
+          </div>
+          <div class="law-article">
+            <h4>형사소송법 제308조의2 (위법수집증거의 배제)</h4>
+            <p>적법한 절차에 따르지 아니하고 수집한 증거는 증거로 할 수 없다. (독수독과 원칙의 명문화)</p>
+          </div>
+          <div class="law-article">
+            <h4>통신비밀보호법 제3조 (타인 대화 비밀 침해 금지)</h4>
+            <p>누구든지 공개되지 아니한 타인간의 대화를 녹음하거나 전자장치 등을 이용하여 청취하지 못하며, 이를 위반하여 수집된 증거는 재판에서 증거로 사용할 수 없다.</p>
+          </div>
+          <div class="law-article">
+            <h4>형사소송법 제309조 (자백배제법칙)</h4>
+            <p>피고인의 자백이 고문, 폭행, 협박, 신체구속의 부당한 장기화 또는 기망 기타의 방법으로 임의로 진술한 것이 아니라고 의심할 만한 이유가 있는 때에는 이를 유죄의 증거로 삼지 못한다.</p>
+          </div>
+          <div class="law-article">
+            <h4>정보통신망법 제70조 (사이버 명예훼손 요건)</h4>
+            <p>① 사람을 비방할 목적으로 정보통신망을 통하여 공공연하게 사실을 드러내어 다른 사람의 명예를 훼손한 자는 처벌한다.<br>
+            ② 거짓의 사실을 드러내어 명예를 훼손한 경우 가중처벌한다. (핵심 요건: 비방 목적, 공연성[전파 가능성], 특정성)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------------------------------------------------- -->
+  <!-- MODAL POPUPS (오버레이 모달) -->
+  <!-- ---------------------------------------------------- -->
+
+  <!-- ① 비주얼 노벨 모달 -->
+  <div id="vn-modal" class="vn-overlay" style="display: none;">
+    <div class="vn-container">
+      <div class="vn-bg-display" id="vn-bg-view">
+        <div id="vn-char-left" class="vn-avatar-left">👩‍💻</div>
+        <div id="vn-char-right" class="vn-avatar-right inactive">🙎‍♀️</div>
+      </div>
+      <div class="vn-textbox">
+        <div class="vn-char-name" id="vn-char-name-label">강지민 (피고인)</div>
+        <div class="vn-dialogue-text" id="vn-dialogue-label">불러오는 중...</div>
+        <div class="vn-controls">
+          <button onclick="vnNextStep()" class="primary">다음 대사 보기 &gt;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 역할별 기초 서면 가이드라인 모달 -->
+  <div id="guideline-modal" class="guideline-overlay" style="display: none;">
+    <div class="guideline-container glass-card">
+      <h2 id="guideline-title" style="color: var(--accent-gold); font-size: 1.3rem; border-bottom: 1px solid var(--accent-gold); padding-bottom: 10px;">역할별 법정 가이드라인</h2>
+      <div id="guideline-content" class="guideline-body">
+        <!-- 가이드 내용 동적 삽입 -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+        <button onclick="closeGuidelineModal()" class="primary">가이드라인을 숙지했습니다</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 증거 마켓 상세 내용 및 이의제기 팝업 -->
+  <div id="evidence-modal" class="evidence-detail-overlay" style="display: none;">
+    <div class="evidence-detail-container glass-card">
+      <div id="evidence-modal-header" class="evidence-detail-header">증거 상세 보기</div>
+      <div style="font-size: 13.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 8px;">
+        <p><b>출처/제출:</b> <span id="evidence-modal-source" style="color: var(--accent-gold-light);">검사 측</span></p>
+        <p style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border: 1px solid var(--glass-border);" id="evidence-modal-desc">상세 내용...</p>
+        
+        <!-- 교육적 피드백: 학생에게 직접적인 위법여부 정답을 노출하지 않고, 법적 정황을 탐색하도록 유도 -->
+        <div style="background: rgba(197, 168, 128, 0.05); padding: 10px; border-radius: 6px; border: 1px solid var(--accent-gold-glow);">
+          <h4 style="font-size: 12px; color: var(--accent-gold); margin-bottom: 4px;">사법 분석 힌트 및 정황</h4>
+          <p id="evidence-modal-context" style="font-size: 12px; color: var(--text-muted);">이 증거가 수집된 구체적인 상황을 법전과 대조해 보세요.</p>
+        </div>
+      </div>
+
+      <!-- 기조/역할별 인터랙션 구역 (채택하기 / 이의제기 제출 양식) -->
+      <div id="evidence-modal-actions" style="margin-top: 10px;">
+        <!-- 검사 증거분석관용 채택 양식 -->
+        <div id="action-prosecutor-select" style="display: none; flex-direction: column; gap: 10px;">
+          <textarea id="prosecutor-evidence-arg" placeholder="이 증거가 왜 적법하며, 공소사실(명예훼손)을 어떻게 입증하는지 주논증을 작성하세요..." rows="3"></textarea>
+          <button onclick="submitProsecutionEvidence()" class="primary" style="width: 100%;">증거물 제출 및 주논증 송출</button>
+        </div>
+
+        <!-- 변호사 증거감시관용 이의제기 양식 -->
+        <div id="action-defense-objection" style="display: none; flex-direction: column; gap: 10px; border-top: 1px dashed var(--glass-border); padding-top: 10px;">
+          <h4 style="font-size: 13px; color: var(--color-defense); font-weight: bold;">🚨 위법수집증거 배제 이의제기 (Objection)</h4>
+          <div class="form-group">
+            <label for="defense-objection-law-type">이유가 되는 헌법/법률 조항 선택</label>
+            <select id="defense-objection-law-type">
+              <option value="warrant">헌법 제12조 제3항 (영장주의 위반)</option>
+              <option value="telecom">통신비밀보호법 제3조 (제3자 비밀녹음)</option>
+              <option value="coercion">형사소송법 제309조 (자백의 임의성 의심 / 강요/감금)</option>
+              <option value="hearsay">기타 적법절차 위반 (사생활 침해)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="defense-objection-reason">구체적인 이의제기 소명 논리</label>
+            <textarea id="defense-objection-reason" placeholder="이 증거 수집 과정의 어떤 점이 법률을 위반했는지 설명하여 증거 배제를 청구하세요..." rows="3"></textarea>
+          </div>
+          <button onclick="submitObjection()" class="primary" style="background: linear-gradient(135deg, var(--color-defense), #991b1b); border-color: #fca5a5; color: #fff; width: 100%;">재판장에게 [이의제기] 제출</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button onclick="closeEvidenceModal()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 교사용 최종 판결문 미리보기 및 인쇄용 템플릿 모달 -->
+  <div id="report-modal" class="guideline-overlay" style="display: none;">
+    <div class="guideline-container glass-card" style="width: 800px; max-height: 90%;">
+      <div class="flex-row-between" style="border-bottom: 1px solid var(--accent-gold); padding-bottom: 10px; margin-bottom: 10px;">
+        <h2 style="color: var(--accent-gold); font-size: 1.3rem;">⚖️ 모의재판 결과 보고서 (판결문) 인쇄 및 저장</h2>
+        <button onclick="closeReportModal()">창 닫기</button>
+      </div>
+
+      <div id="report-modal-body" class="guideline-body" style="background: #fff; color: #0f172a; padding: 25px; border-radius: 4px; overflow-y: auto;">
+        <!-- PDF 출력용 법원 판결문 양식 동적 렌더링 영역 (인쇄 시 이 부분만 인쇄하도록 인쇄 스타일 CSS 적용 예정) -->
+        <div class="print-judgment-sheet" id="print-sheet-content">
+          <!-- JS 동적 생성 -->
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px;">
+        <button onclick="printReportDocument()" class="primary">🖨️ PDF 다운로드 / 인쇄</button>
+        <button onclick="closeReportModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 작성 예시 및 법리 가이드 모달 -->
+  <div id="example-guide-modal" class="guideline-overlay" style="display: none;">
+    <div class="guideline-container glass-card" style="width: 600px; max-height: 80%;">
+      <h2 id="example-guide-title" style="color: var(--accent-blue-mid); font-size: 1.3rem; border-bottom: 2px solid var(--accent-blue-light); padding-bottom: 10px; font-weight: bold;">📋 작성 예시 및 법리 가이드</h2>
+      <div id="example-guide-content" class="guideline-body" style="margin-top: 15px;">
+        <!-- 작성 가이드 및 피고인/원고측 서면 예시가 동적으로 채워집니다. -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+        <button onclick="closeExampleGuideModal()" class="primary">확인 및 가이드 닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <!-- 시나리오 파일이 먼저 실행되어 MockTrial.scenarios를 초기화합니다. -->
+  <script src="src/scenarios/cyber-defamation.js"></script>
+  <!-- DB 연동 파일이 MockTrial.DB를 초기화합니다. -->
+  <script src="src/modules/db.js"></script>
+  <!-- 메인 코디네이터 로직 -->
+  <script src="src/main.js"></script>
+
+</body>
+</html>
