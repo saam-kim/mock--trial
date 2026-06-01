@@ -23,17 +23,20 @@ function switchLoginTab(type) {
   const teacherBtn = document.getElementById("tab-teacher-btn");
   const studentForm = document.getElementById("student-login-form");
   const teacherForm = document.getElementById("teacher-login-form");
+  const cardTitle = document.getElementById("login-card-title");
 
   if (type === "student") {
-    studentBtn.classList.add("active");
-    teacherBtn.classList.remove("active");
-    studentForm.style.display = "block";
-    teacherForm.style.display = "none";
+    if (studentBtn) studentBtn.style.display = "none";
+    if (teacherBtn) teacherBtn.style.display = "inline-flex";
+    if (studentForm) studentForm.style.display = "block";
+    if (teacherForm) teacherForm.style.display = "none";
+    if (cardTitle) cardTitle.innerText = "학생 접속하기";
   } else {
-    teacherBtn.classList.add("active");
-    studentBtn.classList.remove("active");
-    teacherForm.style.display = "block";
-    studentForm.style.display = "none";
+    if (teacherBtn) teacherBtn.style.display = "none";
+    if (studentBtn) studentBtn.style.display = "inline-flex";
+    if (teacherForm) teacherForm.style.display = "block";
+    if (studentForm) studentForm.style.display = "none";
+    if (cardTitle) cardTitle.innerText = "교사 로그인";
     setTimeout(() => {
       const pinInput = document.getElementById("teacher-pin");
       if (pinInput) pinInput.focus();
