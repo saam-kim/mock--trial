@@ -1656,6 +1656,20 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* 🔒 PIN 입력기 (모던 레이아웃용) */
+.hidden-pin-input {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+
 .pin-entry-container-modern {
   display: flex;
   flex-direction: column;

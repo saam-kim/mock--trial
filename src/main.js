@@ -763,7 +763,7 @@ function generateCombinedBriefHTML(data) {
           <div style="white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; min-height: 40px;">${teamData.argument || '방어 논증가가 작성 중입니다...'}</div>
         </div>
         <div style="margin-bottom: 15px;">
-          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">3. 위법수집증거 배제 이의제기 (독수독과 신청)</h4>
+          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">3. 위법수집증거 배제 이의제기 (배제 신청)</h4>
           <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px; font-weight: bold;">제출한 이의제기 내역:</p>
           <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; font-size:11.5px;">
             ${teamData.objections.map((o, idx) => `
@@ -1169,7 +1169,7 @@ function renderJuryWorkspace(workspace, data) {
       <!-- 배심원 메모장 (개별 로컬 임시 저장으로 세션 초기화 방지) -->
       <div class="glass-card">
         <h3 style="color: var(--accent-gold); margin-bottom: 8px; font-size:13px;">📝 배심원 개인 재판 메모장 (나만 보기)</h3>
-        <textarea id="juror-private-memo" rows="4" placeholder="양측 주장의 신빙성이나 독수독과 위반 사항을 기록해 두세요. 평결 투표 시 참고용입니다..." oninput="localStorage.setItem('juror_memo_' + sessionId, this.value)">${localStorage.getItem('juror_memo_' + sessionId) || ''}</textarea>
+        <textarea id="juror-private-memo" rows="4" placeholder="양측 주장의 신빙성이나 위법수집증거 배제 위반 사항을 기록해 두세요. 평결 투표 시 참고용입니다..." oninput="localStorage.setItem('juror_memo_' + sessionId, this.value)">${localStorage.getItem('juror_memo_' + sessionId) || ''}</textarea>
       </div>
     </div>
   `;
@@ -1538,7 +1538,7 @@ function submitObjection() {
   window.MockTrial.DB.updateData(sessionId, "defense", "objections", updatedObjections);
 
   // 실시간 피드에 긴급 알림 전송
-  window.MockTrial.DB.sendFeedMessage(sessionId, `변호인 [${myName}]`, `🚨 [이의제기 신청] 검사 측 제출 증거 [${selectedEvidenceId}]에 대해 독수독과 및 적법절차 위반(${lawLabels[lawType]})을 이유로 배제를 청구합니다!`, "objection");
+  window.MockTrial.DB.sendFeedMessage(sessionId, `변호인 [${myName}]`, `🚨 [이의제기 신청] 검사 측 제출 증거 [${selectedEvidenceId}]에 대해 위법수집증거 및 적법절차 위반(${lawLabels[lawType]})을 이유로 배제를 청구합니다!`, "objection");
 
   closeEvidenceModal();
 }
@@ -1590,7 +1590,7 @@ function resolveObjection(resultVal) {
   // 1. 이의제기 히스토리 갱신
   window.MockTrial.DB.updateData(sessionId, "defense", "objections", objections);
 
-  // 2. 인용인 경우, 검사 측 채택 증거에서 해당 증거 자동 박탈!! (독수독과 원칙 연동)
+  // 2. 인용인 경우, 검사 측 채택 증거에서 해당 증거 자동 박탈!! (위법수집증거 배제 법칙 연동)
   if (resultVal === "sustained") {
     const updatedPEvids = sessionData.prosecutionData.selectedEvidence.filter(id => id !== targetObj.evidenceId);
     window.MockTrial.DB.updateData(sessionId, "prosecution", "selectedEvidence", updatedPEvids);
@@ -1737,7 +1737,7 @@ function triggerPrintReport() {
         </div>
 
         <div style="margin-bottom: 15px;">
-          <h5 style="font-weight: bold; margin-bottom: 4px;">2. 증거 능력의 판단 및 배제 내역 (독수독과 원칙 심리)</h5>
+          <h5 style="font-weight: bold; margin-bottom: 4px;">2. 증거 능력의 판단 및 배제 내역 (위법수집증거 법칙 심리)</h5>
           <div style="font-size:12.5px; background:#f8fafc; padding:10px; border-radius:4px; border:1px solid #e2e8f0;">
             ${evidenceHistoryHTML}
           </div>
@@ -2010,7 +2010,7 @@ const EXAMPLES_AND_GUIDES = {
         <div style="background: var(--bg-tertiary); border: 1px solid rgba(37, 99, 235, 0.15); padding: 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; color: var(--text-main);">
           "변호인은 피고인 최민우에 대한 공소사실을 전면 부인하며 무죄를 강력히 주장합니다. 피고인은 한소희에 대한 루머를 작성하거나 전파한 적이 없습니다.<br><br>
           검사 측은 피고인을 가해자로 단정하고 기소하였으나, 검사가 제시한 증거들 중 대다수는 법원 영장도 없이 교실 피고인의 사물함 잠금장치를 부수고 임의 강탈한 개인 수첩(A2)이거나, 당사자 동의 없이 무단 도청에 준하는 음성 녹취(A4), 그리고 밤샘 불법 구금 하에 회유와 협박으로 도출된 자백서(A6) 등 헌법상 영장주의와 적법절차를 정면 유린한 심각한 위법수집증거들입니다.<br><br>
-          변호인은 독수독과 원칙에 따라 위법하게 획득된 증거들의 증거능력을 전면 배제할 것을 청구하며, 피고인의 무죄를 배심원단 여러분과 함께 엄정히 증명해 나갈 것입니다."
+          변호인은 위법수집증거 배제 원칙에 따라 위법하게 획득된 증거들의 증거능력을 전면 배제할 것을 청구하며, 피고인의 무죄를 배심원단 여러분과 함께 엄정히 증명해 나갈 것입니다."
         </div>
       </div>
     `
@@ -2019,7 +2019,7 @@ const EXAMPLES_AND_GUIDES = {
     title: "방어 모둠 - 증거 감시관 이의제기 예시 & 가이드 (다른 사건 예시)",
     content: `
       <div class="example-guide-box">
-        <h4 style="color: var(--color-defense); border-left: 3px solid var(--color-defense); padding-left: 6px;">위법수집증거 배제(독수독과) 이의제기 가이드</h4>
+        <h4 style="color: var(--color-defense); border-left: 3px solid var(--color-defense); padding-left: 6px;">위법수집증거 배제 이의제기 가이드</h4>
         <ul style="padding-left: 20px; font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px;">
           <li><b>[주의]</b> 본 예시는 다른 가상 사건(급식비 도난 소문 사건)에 관한 것입니다. 이를 참고하여 현재 다루고 있는 '강지민 단톡방 사건'의 인물과 팩트로 바꾸어 작성하세요!</li>
           <li><b>절차적 문제 판별</b>: 검사 측이 제출한 증거 카드에 영장 미소지(사생활 침해), 타인 비밀대화 녹음, 강요에 의한 자백 팩트가 적혀 있는지 대조합니다.</li>
@@ -2073,7 +2073,7 @@ const EXAMPLES_AND_GUIDES = {
         <h4 style="color: var(--color-defense); border-left: 3px solid var(--color-defense); padding-left: 6px;">최종 변론 및 피고인 구제 가이드</h4>
         <ul style="padding-left: 20px; font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px;">
           <li><b>[주의]</b> 본 예시는 다른 가상 사건(급식비 도난 소문 사건)에 관한 것입니다. 이를 참고하여 현재 다루고 있는 '강지민 단톡방 사건'의 인물과 팩트로 바꾸어 작성하세요!</li>
-          <li><b>독수독과 법칙 재환기</b>: 절차 위반 증거인 사물함 수첩(A2), 카페 녹취(A4), 자백서(A6)가 배제되었음을 환기하여 유죄 심증을 부숩니다.</li>
+          <li><b>위법수집증거 법칙 재환기</b>: 절차 위반 증거인 사물함 수첩(A2), 카페 녹취(A4), 자백서(A6)가 배제되었음을 환기하여 유죄 심증을 부숩니다.</li>
           <li><b>합리적 의심 호소</b>: 도용 개연성(A7, A8)을 요약하여 합리적인 의심에 따른 무죄를 강력히 탄원합니다.</li>
         </ul>
         
@@ -2092,7 +2092,7 @@ const EXAMPLES_AND_GUIDES = {
         <h4 style="color: var(--color-jury); border-left: 3px solid var(--color-jury); padding-left: 6px;">평결 요지 소명서 작성 가이드</h4>
         <ul style="padding-left: 20px; font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px;">
           <li><b>[주의]</b> 본 예시는 다른 가상 사건(급식비 도난 소문 사건)에 관한 것입니다. 이를 참고하여 현재 다루고 있는 '강지민 단톡방 사건'의 법리와 증거에 기초해 소명서를 작성하세요!</li>
-          <li><b>독수독과 원칙의 준수</b>: 이의제기가 수용(인용)되어 법적으로 배제된 증거들은 절대로 판단 기준으로 삼지 말아야 합니다.</li>
+          <li><b>위법수집증거 배제 원칙의 준수</b>: 이의제기가 수용(인용)되어 법적으로 배제된 증거들은 절대로 판단 기준으로 삼지 말아야 합니다.</li>
           <li><b>합리적 의심 해결 여부</b>: 검찰의 적법 증거가 유죄를 충분히 증명했는지, 혹은 변호인의 반증이 타당했는지를 바탕으로 한 줄 이유를 씁니다.</li>
         </ul>
         
