@@ -34,6 +34,10 @@ function switchLoginTab(type) {
     studentBtn.classList.remove("active");
     teacherForm.style.display = "block";
     studentForm.style.display = "none";
+    setTimeout(() => {
+      const pinInput = document.getElementById("teacher-pin");
+      if (pinInput) pinInput.focus();
+    }, 50);
   }
 }
 
@@ -1804,6 +1808,9 @@ window.onload = () => {
     console.log("튕김 방지: 이전 접속 정보 복구를 시도합니다.", savedSessionId, savedStudentName);
     autoReconnectStudent(savedSessionId, savedStudentName);
   }
+
+  // 교사 PIN 패스코드 입력기 초기화
+  initPinEntry();
 };
 
 // 학생 자동 재접속 함수
@@ -2115,4 +2122,60 @@ function showExampleGuide(role) {
 
 function closeExampleGuideModal() {
   document.getElementById("example-guide-modal").style.display = "none";
+}
+
+// 🔒 교사용 PIN 패스코드 시각화 입력기 구현
+function initPinEntry() {
+  const pinInput = document.getElementById("teacher-pin");
+  const cells = [
+    document.getElementById("pin-cell-0"),
+    document.getElementById("pin-cell-1"),
+    document.getElementById("pin-cell-2"),
+    document.getElementById("pin-cell-3")
+  ];
+
+  if (!pinInput || !cells[0]) return;
+
+  // 인풋 값 변경 시 시각적 셀 업데이트
+  pinInput.addEventListener("input", () => {
+    const val = pinInput.value.replace(/[^0-9]/g, ""); // 숫자만 허용
+    pinInput.value = val.substring(0, 4); // 최대 4자리 제한
+
+    for (let i = 0; i < 4; i++) {
+      const cell = cells[i];
+      if (i < pinInput.value.length) {
+        cell.classList.add("filled");
+        cell.classList.remove("active");
+      } else if (i === pinInput.value.length) {
+        cell.classList.add("active");
+        cell.classList.remove("filled");
+      } else {
+        cell.classList.remove("filled", "active");
+      }
+    }
+  });
+
+  // 인풋 포커스 시 첫 번째 미입력 셀에 active 클래스 적용
+  pinInput.addEventListener("focus", () => {
+    const len = pinInput.value.length;
+    for (let i = 0; i < 4; i++) {
+      if (i === len) {
+        cells[i].classList.add("active");
+      } else {
+        cells[i].classList.remove("active");
+      }
+    }
+  });
+
+  // 인풋 포커스 아웃 시 active 클래스 제거
+  pinInput.addEventListener("blur", () => {
+    for (let i = 0; i < 4; i++) {
+      cells[i].classList.remove("active");
+    }
+  });
+}
+
+function focusPinInput() {
+  const pinInput = document.getElementById("teacher-pin");
+  if (pinInput) pinInput.focus();
 }

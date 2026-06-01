@@ -41,9 +41,15 @@
 
         <!-- 교사 로그인 폼 -->
         <form id="teacher-login-form" onsubmit="handleTeacherLogin(event)" style="display: none;">
-          <div class="form-group text-center" style="display: flex; flex-direction: column; align-items: center;">
-            <label for="teacher-pin" style="font-size: 15px; margin-bottom: 12px; color: var(--accent-blue);">교사 인증 PIN 번호</label>
-            <input type="password" id="teacher-pin" placeholder="PIN 번호 입력" required style="text-align: center; font-size: 22px; letter-spacing: 8px; width: 80%; padding: 14px; max-width: 320px;">
+          <div class="pin-entry-container">
+            <label for="teacher-pin" class="pin-label">교사 인증 PIN 번호</label>
+            <input type="password" id="teacher-pin" maxlength="4" placeholder="" required class="hidden-pin-input">
+            <div class="pin-visual-row" onclick="focusPinInput()">
+              <div class="pin-cell" id="pin-cell-0"></div>
+              <div class="pin-cell" id="pin-cell-1"></div>
+              <div class="pin-cell" id="pin-cell-2"></div>
+              <div class="pin-cell" id="pin-cell-3"></div>
+            </div>
           </div>
           <div style="display: flex; justify-content: center; width: 100%; margin-top: 25px;">
             <button type="submit" class="primary" style="width: 80%; max-width: 320px; height: 52px; font-size: 16px;">교사 대시보드 개설</button>
