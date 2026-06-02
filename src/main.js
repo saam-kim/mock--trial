@@ -94,9 +94,7 @@ function handleStudentLogin(event) {
   myName = nameInput;
   userType = "student";
 
-  // 튕김 복구를 위해 로컬스토리지에 세션 번호와 학생 이름 저장
-  localStorage.setItem("reconnect_session_id", sessionId);
-  localStorage.setItem("reconnect_student_name", myName);
+  // (자동 재접속 로직 제거됨)
 
   // 대기화면 표시
   document.getElementById("wait-session-code").innerText = sessionId;
@@ -644,9 +642,7 @@ function selectAndStartSession(scenarioId) {
 
 function leaveWaitingRoom() {
   if (confirm("대기실/법정에서 퇴장하여 로그인 화면으로 돌아가시겠습니까?")) {
-    // 튕김 방지 정보 삭제
-    localStorage.removeItem("reconnect_session_id");
-    localStorage.removeItem("reconnect_student_name");
+    // 튕김 방지 정보 삭제 (자동 재접속 제거)
     
     // 데이터베이스 접속 끊기 처리
     if (sessionId && myName) {
@@ -2095,8 +2091,7 @@ function closeReportModal() {
 
 function handleLogout() {
   if (confirm("로그아웃 하시겠습니까?")) {
-    localStorage.removeItem("reconnect_session_id");
-    localStorage.removeItem("reconnect_student_name");
+    // 자동 재접속 제거
     location.reload();
   }
 }
@@ -2119,76 +2114,13 @@ window.onload = () => {
     });
   }
 
-  // 튕김 방지 및 자동 재접속 복구 로직
-  const savedSessionId = localStorage.getItem("reconnect_session_id");
-  const savedStudentName = localStorage.getItem("reconnect_student_name");
-  if (savedSessionId && savedStudentName) {
-    console.log("튕김 방지: 이전 접속 정보 복구를 시도합니다.", savedSessionId, savedStudentName);
-    autoReconnectStudent(savedSessionId, savedStudentName);
-  }
+  // (튕김 방지 및 자동 재접속 복구 로직 제거됨 - 항상 입장 화면 노출)
 
   // 교사 PIN 패스코드 입력기 초기화
   initPinEntry();
 };
 
-// 학생 자동 재접속 함수
-function autoReconnectStudent(savedSessionId, savedStudentName) {
-  const session = window.MockTrial.DB.getSession(savedSessionId);
-  if (!session) {
-    localStorage.removeItem("reconnect_session_id");
-    localStorage.removeItem("reconnect_student_name");
-    return;
-  }
-
-  // 세션 입장 시도
-  const result = window.MockTrial.DB.joinSession(savedSessionId, savedStudentName);
-  if (!result.success) {
-    localStorage.removeItem("reconnect_session_id");
-    localStorage.removeItem("reconnect_student_name");
-    return;
-  }
-
-  sessionId = savedSessionId;
-  myName = savedStudentName;
-  userType = "student";
-
-  // 화면을 대기 화면으로 초기 설정 (나중에 onSessionUpdate에서 역할 배정 감지 시 메인으로 자동 이동함)
-  document.getElementById("wait-session-code").innerText = sessionId;
-  showScreen("waiting-screen");
-
-  // 실시간 동기화 바인딩
-  window.MockTrial.DB.onSessionUpdate(sessionId, (data) => {
-    sessionData = data;
-    const me = data.students[myName];
-    
-    if (me) {
-      myRole = me.role;
-      myTeam = me.team;
-    }
-
-    if (myTeam && myRole) {
-      if (document.getElementById("waiting-screen").classList.contains("active") || 
-          document.getElementById("login-screen").classList.contains("active")) {
-        showScreen("trial-screen");
-        
-        // 튕겨서 재접속한 경우 비주얼 노벨이나 가이드라인을 매번 강제로 띄우지 않고 자연스럽게 진행
-        // (단, 1단계에선 비주얼 노벨이 아직 안끝났을 수 있으므로 띄워줌)
-        if (data.currentStage === 1) {
-          startVisualNovel();
-        }
-      }
-      updateStudentDashboard(data);
-    } else {
-      document.getElementById("my-assigned-badge").style.display = "none";
-      showScreen("waiting-screen");
-    }
-  });
-
-  // 브라우저 닫거나 이탈 시 퇴장 처리
-  window.addEventListener("beforeunload", () => {
-    window.MockTrial.DB.disconnectStudent(sessionId, myName);
-  });
-}
+// (학생 자동 재접속 함수 제거됨)
 
 // 이의제기 플래시 레이어 번쩍이는 연출
 function triggerObjectionFlash() {
