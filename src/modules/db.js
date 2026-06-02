@@ -50,17 +50,18 @@ class MockTrialDatabase {
   }
 
   // 3. 신규 세션 생성 (교사용)
-  createSession() {
+  createSession(scenarioId = "cyber-defamation") {
     const sessionId = Math.floor(100000 + Math.random() * 900000).toString(); // 6자리 임의 생성
     this.currentSessionId = sessionId;
 
     const initialData = {
       sessionId: sessionId,
+      scenarioId: scenarioId, // 선택된 모의재판 시나리오 ID
       status: "waiting", // waiting | intro | guidelines | trial | verdict | finished
-      currentStage: 1, // 1: 도입부 스토리, 2: 기초서면/기조진술, 3: 증거조사 및 이의제기, 4: 공방 및 재반박, 5: 최종변론, 6: 평결 및 판결문
+      currentStage: 1, // 1: 도입부 사건 파악 및 역할별 준비, 2: 기초서면/기조진술, 3: 증거조사 및 이의제기, 4: 공방 및 재반박, 5: 최종변론, 6: 평결 및 판결문
       timer: {
-        duration: 300, // 초 단위
-        timeLeft: 300,
+        duration: 360, // 초 단위 (1단계 6분 기본)
+        timeLeft: 360,
         isRunning: false
       },
       teacherPresent: true,
@@ -71,6 +72,7 @@ class MockTrialDatabase {
         argument: "",
         counterArgument: "",
         finalStatement: "",
+        strategy: "", // 모둠 공동 전략 및 회의록
         isSpeakerDone: false,
         isAnalystDone: false,
         isStrategistDone: false,
@@ -82,6 +84,7 @@ class MockTrialDatabase {
         selectedEvidence: [], // E7, E8 등 방어 증거 채택 목록
         argument: "",
         finalStatement: "",
+        strategy: "", // 모둠 공동 전략 및 회의록
         isSpeakerDone: false,
         isGuardDone: false,
         isArguerDone: false,
@@ -251,9 +254,9 @@ class MockTrialDatabase {
     
     // 단계 이름 맵핑
     const stageNames = {
-      1: "1단계: 도입부 사건 스토리 확인",
+      1: "1단계: 도입부 사건 파악 및 역할별 준비",
       2: "2단계: 기초 서면 확인 및 기조 진술",
-      3: "3단계: 증거조사 및 이의제기",
+      3: "3단계: 증거조사 및 이의제기 (핵심)",
       4: "4단계: 치열한 공방 및 재반박",
       5: "5단계: 최종 변론 및 구형",
       6: "6단계: 배심원 평결 및 최종 판결"
@@ -266,8 +269,8 @@ class MockTrialDatabase {
       timestamp: Date.now()
     });
 
-    // 단계별 기본 타이머 초기화 (예: 기조진술 4분, 증거조사 6분 등)
-    const timers = { 1: 180, 2: 240, 3: 360, 4: 360, 5: 300, 6: 180 };
+    // 단계별 기본 타이머 초기화 (예: 도입/준비 6분, 기조진술 4분 등)
+    const timers = { 1: 360, 2: 240, 3: 360, 4: 360, 5: 300, 6: 180 };
     session.timer.duration = timers[stageIndex] || 300;
     session.timer.timeLeft = session.timer.duration;
     session.timer.isRunning = false;

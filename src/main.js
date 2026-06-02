@@ -223,7 +223,7 @@ function updateTeacherDashboard(data) {
 
   // 현재 단계 텍스트 변경
   const stageNames = {
-    1: "1단계: 도입부 사건 스토리 확인",
+    1: "1단계: 도입부 사건 파악 및 역할별 준비",
     2: "2단계: 기초 서면 확인 및 기조 진술",
     3: "3단계: 증거조사 및 이의제기 (핵심)",
     4: "4단계: 치열한 공방 및 재반박",
@@ -467,7 +467,7 @@ function updateStudentDashboard(data) {
 
   // 좌측 단계 라벨
   const stageLabels = {
-    1: "1단계: 사건 스토리 요약",
+    1: "1단계: 도입부 사건 파악 및 역할별 준비",
     2: "2단계: 기초 서면 & 기조 진술",
     3: "3단계: 증거 조사 & 이의제기",
     4: "4단계: 치열한 공방 & 재반박",
@@ -531,7 +531,8 @@ function startVisualNovel() {
 }
 
 function renderVNStep() {
-  const script = window.MockTrial.scenarios["cyber-defamation"].vnScript[vnCurrentStep];
+  const scenarioId = (sessionData && sessionData.scenarioId) || "cyber-defamation";
+  const script = window.MockTrial.scenarios[scenarioId].vnScript[vnCurrentStep];
   const labelName = document.getElementById("vn-char-name-label");
   const labelDialogue = document.getElementById("vn-dialogue-label");
   const bgView = document.getElementById("vn-bg-view");
@@ -564,7 +565,8 @@ function renderVNStep() {
 }
 
 function vnNextStep() {
-  const stepsCount = window.MockTrial.scenarios["cyber-defamation"].vnScript.length;
+  const scenarioId = (sessionData && sessionData.scenarioId) || "cyber-defamation";
+  const stepsCount = window.MockTrial.scenarios[scenarioId].vnScript.length;
   if (vnCurrentStep < stepsCount - 1) {
     vnCurrentStep++;
     renderVNStep();
@@ -585,7 +587,8 @@ function showRoleGuidelinePopup() {
   const content = document.getElementById("guideline-content");
 
   let guidelineData = null;
-  const guidelines = window.MockTrial.scenarios["cyber-defamation"].guidelines;
+  const scenarioId = (sessionData && sessionData.scenarioId) || "cyber-defamation";
+  const guidelines = window.MockTrial.scenarios[scenarioId].guidelines;
 
   if (myTeam === "prosecution") {
     guidelineData = guidelines.prosecutor;
@@ -607,6 +610,288 @@ function closeGuidelineModal() {
 }
 
 // ----------------------------------------------------
+// AI 피드백 및 대기실 탈출 및 시나리오 개설 추가 모듈
+// ----------------------------------------------------
+function closeAiFeedbackModal() {
+  document.getElementById("ai-feedback-modal").style.display = "none";
+}
+
+function closeScenarioSelectModal() {
+  document.getElementById("scenario-select-modal").style.display = "none";
+}
+
+function selectAndStartSession(scenarioId) {
+  closeScenarioSelectModal();
+  
+  // 세션 개설
+  sessionId = window.MockTrial.DB.createSession(scenarioId);
+  myName = "교사 (재판장)";
+  myRole = "teacher";
+  myTeam = "teacher";
+  userType = "teacher";
+
+  showScreen("teacher-screen");
+  
+  // 실시간 동기화 바인딩
+  window.MockTrial.DB.onSessionUpdate(sessionId, (data) => {
+    sessionData = data;
+    updateTeacherDashboard(data);
+  });
+
+  // 교사 전용 1초 주기 타이머 작동 (로컬 동기화용)
+  startTeacherTimerLoop();
+}
+
+function leaveWaitingRoom() {
+  if (confirm("대기실/법정에서 퇴장하여 로그인 화면으로 돌아가시겠습니까?")) {
+    // 튕김 방지 정보 삭제
+    localStorage.removeItem("reconnect_session_id");
+    localStorage.removeItem("reconnect_student_name");
+    
+    // 데이터베이스 접속 끊기 처리
+    if (sessionId && myName) {
+      window.MockTrial.DB.disconnectStudent(sessionId, myName);
+    }
+    
+    // 상태 초기화
+    sessionId = null;
+    myName = "";
+    myRole = "";
+    myTeam = "";
+    
+    // 메인 로그인 화면으로 리다이렉트
+    showScreen("login-screen");
+  }
+}
+
+function requestAiFeedback(roleKey) {
+  const modal = document.getElementById("ai-feedback-modal");
+  const content = document.getElementById("ai-feedback-content");
+  
+  let text = "";
+  let evidence = [];
+  let roleName = "";
+  const scenarioId = (sessionData && sessionData.scenarioId) || "cyber-defamation";
+  const scenario = window.MockTrial.scenarios[scenarioId];
+  
+  if (roleKey === "prosecution-strategy" || roleKey === "defense-strategy") {
+    const input = document.getElementById("team-strategy-input");
+    text = input ? input.value.trim() : "";
+    roleName = roleKey === "prosecution-strategy" ? "공격(검사) 모둠 공동 전략" : "방어(변호인) 모둠 공동 전략";
+  } else if (roleKey === "prosecution-speaker") {
+    const input = document.getElementById("p-opening-input");
+    text = input ? input.value.trim() : "";
+    roleName = "검사 측 기조 대변인";
+  } else if (roleKey === "prosecution-analyst") {
+    const input = document.getElementById("p-arg-input");
+    text = input ? input.value.trim() : "";
+    evidence = sessionData.prosecutionData.selectedEvidence;
+    roleName = "검사 측 증거 분석관";
+  } else if (roleKey === "prosecution-strategist") {
+    const input = document.getElementById("p-counter-input");
+    text = input ? input.value.trim() : "";
+    roleName = "검사 측 반박 전략가";
+  } else if (roleKey === "prosecution-finalist") {
+    const input = document.getElementById("p-final-input");
+    text = input ? input.value.trim() : "";
+    roleName = "검사 측 최종 변론가";
+  } else if (roleKey === "defense-speaker") {
+    const input = document.getElementById("d-opening-input");
+    text = input ? input.value.trim() : "";
+    roleName = "변호인 측 기조 답변인";
+  } else if (roleKey === "defense-arguer") {
+    const input = document.getElementById("d-arg-input");
+    text = input ? input.value.trim() : "";
+    evidence = sessionData.defenseData.selectedEvidence;
+    roleName = "변호인 측 방어 논증가";
+  } else if (roleKey === "defense-finalist") {
+    const input = document.getElementById("d-final-input");
+    text = input ? input.value.trim() : "";
+    roleName = "변호인 측 최종 변론가";
+  }
+
+  if (!text || text.length < 15) {
+    content.innerHTML = `
+      <div style="text-align: center; padding: 20px 0;">
+        <span style="font-size: 3rem;">⚠️</span>
+        <h3 style="color: var(--color-defense); margin-top: 15px;">작성된 내용이 너무 적습니다!</h3>
+        <p style="color: var(--text-muted); margin-top: 10px; font-size:13px; line-height: 1.5;">
+          AI 피드백을 받으려면 법리적 주장을 최소 15자 이상 작성해 주세요.<br>
+          (현재 글자 수: ${text ? text.length : 0}자)
+        </p>
+      </div>
+    `;
+    modal.style.display = "flex";
+    return;
+  }
+
+  // AI Feedback Engine (Rule-based educational parser)
+  let score = 50;
+  let scoreColor = "var(--color-defense)";
+  let strengths = [];
+  let improvements = [];
+  let suggestions = "";
+  
+  const hasKeyword = (k) => text.includes(k);
+  const keywordsMatchCount = (arr) => arr.filter(k => text.includes(k)).length;
+
+  if (roleKey === "prosecution-strategy" || roleKey === "prosecution-speaker") {
+    const isCriminal = scenario.type === "criminal";
+    let keywords = isCriminal ? ["명예훼손", "공연성", "특정성", "유포", "영장"] : ["소음", "데시벨", "손해", "치료비", "도청", "계약"];
+    const matchCount = keywordsMatchCount(keywords);
+    score = 60 + matchCount * 6;
+    if (score > 100) score = 100;
+    
+    if (matchCount >= 3) {
+      strengths.push("사건의 성격에 적합한 주요 법적 쟁점을 다수 짚어냈습니다.");
+    } else {
+      improvements.push("사건 성립 요건(예: " + keywords.slice(0, 3).join(", ") + ")을 더 적극적으로 단어에 반영해 논리를 구성해 보세요.");
+    }
+    
+    if (hasKeyword("E2") || hasKeyword("일기장") || hasKeyword("도청기") || hasKeyword("E4")) {
+      improvements.push("경고: E2/E4와 같이 절차적으로 불법 수집된 증거에 지나치게 의존하면 상대방의 이의제기로 증거가 배제될 수 있습니다. 적법 증거(E1, E3, E5) 위주로 전술을 수립하십시오.");
+    } else {
+      strengths.push("위법수집증거에 의존하지 않고 확실한 적법 증거 위주로 논리를 탄탄히 세우고 있습니다.");
+    }
+    
+    suggestions = isCriminal 
+      ? "피고인의 혐의를 뒷받침할 수 있도록 법적 영장에 의해 획득된 IP 로그(E3)와 동료 목격 진술(E5)을 유죄 입증의 핵심 근거로 내세우세요." 
+      : "원고의 실제 손해액(진단서 E5, 계약서 E1)과 공인 측정 데이터(E3)를 결합하여 피고의 과실 및 책임을 강력히 요구해 보세요.";
+  }
+  else if (roleKey === "prosecution-analyst") {
+    const hasIllegalEv = evidence.includes("E2") || evidence.includes("E4") || evidence.includes("E6");
+    score = 65 + (evidence.includes("E3") ? 15 : 0) + (evidence.includes("E1") ? 10 : 0) - (hasIllegalEv ? 25 : 0);
+    if (score < 40) score = 40;
+    if (score > 100) score = 100;
+    
+    if (hasIllegalEv) {
+      improvements.push("<b>경고:</b> 영장이 없거나(E2), 불법 도청 녹음(E4), 협박 자백(E6) 등 절차상 위법하게 수집된 증거를 제출 대상으로 채택했습니다. 이의제기에 취약하므로 제외할 것을 권장합니다.");
+    } else {
+      strengths.push("헌법상 적법절차 원칙에 저촉되지 않는 무결한 적법 증거(E1, E3, E5) 위주로 깔끔하게 선별했습니다.");
+    }
+    
+    if (evidence.includes("E3")) {
+      strengths.push("공식 법원 절차 및 영장(E3)을 통해 수집한 데이터를 중심에 두어 논증의 법리 신뢰도를 대폭 높였습니다.");
+    }
+    
+    suggestions = "이의제기를 완벽히 피해갈 수 있는 E1과 E3를 주축으로 삼아 피고인의 범죄 행위를 탄탄히 논박하십시오.";
+  }
+  else if (roleKey === "prosecution-strategist") {
+    score = 60 + keywordsMatchCount(["알리바이", "탄핵", "도용", "공유기", "해킹", "신빙성"]) * 7;
+    if (score > 100) score = 100;
+    
+    if (hasKeyword("공유기") || hasKeyword("도용") || hasKeyword("해킹")) {
+      strengths.push("상대방 피고인이 주장할 공유기 고장 알리바이(E7)나 기기 도용 주장(E8)의 허점을 지적하고 인과관계를 차단했습니다.");
+    } else {
+      improvements.push("상대 피고인의 '스마트폰 도용 및 해킹 주장'이나 '공유기 작동 불능 알리바이'에 대해, 범행 시간에 모바일 네트워크 접속이 충분히 가능했음을 지적하는 반박을 추가하세요.");
+    }
+    
+    suggestions = "상대의 공유기 고장이나 기기 분실 도용 주장이 법원 회신 공문(E3) 및 목격자 진술(E5) 등 신뢰도 높은 적법물증을 무력화할 수 없다는 논리로 탄핵해 보세요.";
+  }
+  else if (roleKey === "prosecution-finalist") {
+    score = 70 + keywordsMatchCount(["유죄", "배상", "엄벌", "고통", "배심원", "정의"]) * 5;
+    if (score > 100) score = 100;
+    
+    if (hasKeyword("고통") || hasKeyword("피해") || hasKeyword("정의")) {
+      strengths.push("이번 소송/피해 행위가 일상생활과 권리를 얼마나 무참히 짓밟았는지 배심원단에게 감성적이면서도 법리적으로 잘 호소했습니다.");
+    }
+    suggestions = "존경하는 배심원 여러분을 호명하며, 불법 행위에 상응하는 유죄 평결(또는 배상액 청구 인용)을 내려 사회 정의를 세워줄 것을 요청하세요.";
+  }
+  else if (roleKey === "defense-strategy" || roleKey === "defense-speaker") {
+    const isCriminal = scenario.type === "criminal";
+    let keywords = isCriminal ? ["무죄", "영장주의", "위법수집", "독수독과", "부인", "배제"] : ["기각", "사생활", "침해", "과실", "매트", "알리바이"];
+    const matchCount = keywordsMatchCount(keywords);
+    score = 60 + matchCount * 6;
+    if (score > 100) score = 100;
+    
+    if (hasKeyword("위법") || hasKeyword("도청") || hasKeyword("배제")) {
+      strengths.push("상대방 증거의 절차적 하자 및 불법성(사생활 무단 도청, 영장 없는 수색 등)을 효과적으로 부각했습니다.");
+    } else {
+      improvements.push("상대가 제출할 E2, E4 등의 증거들이 헌법상 사생활 자유 및 절차적 한계를 일탈한 위법 증거임을 기조 단계부터 명확히 선포해 기선을 제압하십시오.");
+    }
+    
+    suggestions = "검찰(원고) 측의 기소 내용이 절차상 하자가 있는 불법 증거들로 채워져 있어 실체적 진실을 입증할 증거능력이 없음을 힘주어 답변서에 기록하세요.";
+  }
+  else if (roleKey === "defense-arguer") {
+    const hasLegalEv = evidence.includes("E7") || evidence.includes("E8");
+    const hasIllegalEv = evidence.includes("E2") || evidence.includes("E4") || evidence.includes("E6");
+    score = 65 + (hasLegalEv ? 25 : 0) - (hasIllegalEv ? 15 : 0);
+    if (score < 40) score = 40;
+    if (score > 100) score = 100;
+    
+    if (evidence.includes("E7")) {
+      strengths.push("공유기 수리서/출장확인서(E7)를 제출하여 사건 발생 당시 피고가 기기를 다룰 수 없었거나 현장에 없었음을 완벽히 수립했습니다.");
+    }
+    if (evidence.includes("E8")) {
+      strengths.push("분실물 신고서 및 지문 확인 기록(E8)을 통해 제3자의 기기 도용 및 계정 해킹 가능성을 과학적으로 잘 피력했습니다.");
+    }
+    
+    if (!hasLegalEv) {
+      improvements.push("방어논증을 탄탄히 다지기 위해서, 피고인에게 주어진 합법적 알리바이 물증인 E7과 E8을 모두 선택하고 이를 해설하는 데 집중하세요.");
+    }
+    
+    suggestions = "E7(기기 미사용/부재 증명)과 E8(기기 도용/분실 신고)이 어떻게 피고인의 혐의를 100% 탄핵하는지 설명해 배심원의 합리적 의심을 유도하십시오.";
+  }
+  else if (roleKey === "defense-finalist") {
+    score = 65 + keywordsMatchCount(["배심원", "무죄", "기각", "독수독과", "합리적 의심", "영장주의"]) * 6;
+    if (score > 100) score = 100;
+    
+    if (hasKeyword("독수독과") || hasKeyword("배제") || hasKeyword("위법수집")) {
+      strengths.push("위법하게 수집된 증거는 사법 신뢰를 위해 법정에서 완전히 퇴출해야 한다는 원칙(독수독과)을 배심원단에게 가장 인상 깊게 심어 주었습니다.");
+    } else {
+      improvements.push("상대의 불법 압수/도청 증거에 대해 '독나무에서 열린 열매는 원천적으로 독이 있다'는 독수독과(毒樹毒果) 원칙을 활용해 변론의 무게감을 실어 보세요.");
+    }
+    
+    suggestions = "헌법이 수사기관(원고)의 사적 욕망보다 절차적 한계를 더 무겁게 본 이유를 짚고, 합리적 의심이 해결되지 않은 피고인에게 공명정대하게 무죄(또는 청구기각)를 평결해 줄 것을 간곡히 대변하십시오.";
+  }
+
+  if (score >= 80) scoreColor = "var(--color-jury)";
+  else if (score >= 60) scoreColor = "var(--accent-blue-mid)";
+  
+  let strengthsHTML = strengths.map(s => `<li style="margin-bottom: 6px;">🟢 ${s}</li>`).join("");
+  let improvementsHTML = improvements.map(i => `<li style="margin-bottom: 6px;">🟡 ${i}</li>`).join("");
+  
+  if (!strengthsHTML) strengthsHTML = `<li> white; 내용 분석 중... 법리 요건을 더 포함해 보세요.</li>`;
+  if (!improvementsHTML) improvementsHTML = `<li>🟢 특별한 감점 요인이 없습니다. 잘하셨습니다!</li>`;
+
+  content.innerHTML = `
+    <div style="background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+      <div>
+        <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">분석 대상 역할</h4>
+        <span style="font-size: 15px; font-weight: bold; color: #fff;">${roleName}</span>
+      </div>
+      <div style="text-align: right;">
+        <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">AI 법리 평가 점수</h4>
+        <span style="font-size: 24px; font-weight: 900; color: ${scoreColor}; font-family:'Outfit';">${score} / 100</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h4 style="font-size: 13.5px; color: var(--color-jury); font-weight: bold; margin-bottom: 8px; display:flex; align-items:center; gap:6px;">👍 AI 법정 분석관이 꼽은 잘한 점</h4>
+      <ul style="font-size: 12.5px; line-height: 1.5; padding-left: 20px; color: var(--text-main);">
+        ${strengthsHTML}
+      </ul>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h4 style="font-size: 13.5px; color: var(--accent-gold-light); font-weight: bold; margin-bottom: 8px; display:flex; align-items:center; gap:6px;">💡 보완하면 좋을 법리적 관점 및 체크포인트</h4>
+      <ul style="font-size: 12.5px; line-height: 1.5; padding-left: 20px; color: var(--text-main);">
+        ${improvementsHTML}
+      </ul>
+    </div>
+
+    <div style="background: rgba(37,99,235,0.04); border: 1px solid rgba(37,99,235,0.15); padding: 15px; border-radius: 8px;">
+      <h4 style="font-size: 13px; color: var(--accent-blue-mid); font-weight: bold; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">💡 작성 꿀팁 & 추천 가이드라인</h4>
+      <p style="font-size: 12px; line-height: 1.5; color: var(--text-muted); margin: 0;">
+        ${suggestions}
+      </p>
+    </div>
+  `;
+
+  modal.style.display = "flex";
+}
+
+// ----------------------------------------------------
 // ③ 미니 법전 슬라이딩 패널 컨트롤
 // ----------------------------------------------------
 function toggleLawbook() {
@@ -624,19 +909,9 @@ function renderStudentWorkspace(data) {
   // 기본 협업 피어 뷰어 마크업 (팀원 작성 현황 공유)
   const peerPrevs = myTeam !== "jury" ? generatePeerPrevs(data) : "";
 
-  // 1단계: 사건스토리 대기
+  // 1단계: 도입부 사건 파악 및 역할별 준비 단계
   if (currentStage === 1) {
-    workspace.innerHTML = `
-      <div class="workspace-header">
-        <h2>1단계: 사건 스토리 파악 단계</h2>
-        <span style="background: var(--accent-gold); color: #000;">대기 중</span>
-      </div>
-      <div class="glass-card text-center" style="padding: 40px 20px;">
-        <h3 style="margin-bottom:15px; color: var(--accent-gold);">사건의 배경을 확인하고 있습니다.</h3>
-        <p style="color: var(--text-muted);">팀원들과 사건 스토리를 완전히 이해한 뒤 교사의 다음 단계 진행을 기다리세요.</p>
-        <button onclick="startVisualNovel()" class="primary" style="margin-top: 20px;">🎬 사건 스토리 비주얼 노벨 다시 보기</button>
-      </div>
-    `;
+    renderStage1Workspace(workspace, data);
     return;
   }
 
@@ -746,37 +1021,77 @@ function generateCombinedBriefHTML(data) {
           <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">3. 피고인 알리바이에 대한 반박</h4>
           <div style="white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; min-height: 40px;">${teamData.counterArgument || '반박 전략가가 작성 중입니다...'}</div>
         </div>
-        <div>
-          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">4. 최종 구형 및 변론</h4>
-          <div style="white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; min-height: 40px;">${teamData.finalStatement || '최종 변론가가 작성 중입니다...'}</div>
+         // 1. 기조 대변인
+  if (myRole === "speaker") {
+    const isLocked = currentStage < 2;
+    container.innerHTML = `
+      ${isLocked ? `
+        <div class="lock-shield">
+          <h4>🔒 역할 잠금 상태</h4>
+          <p>
+            교사가 <b>2단계 [기초 서면 확인 및 기조 진술]</b> 단계로 진행해야 해제됩니다.
+          </p>
         </div>
-    `;
-  } else {
-    briefHTML += `
-        <div style="margin-bottom: 15px;">
-          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">1. 공소장 부인 및 기조 답변</h4>
-          <div style="white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; min-height: 40px;">${teamData.opening || '기조 답변인이 작성 중입니다...'}</div>
-        </div>
-        <div style="margin-bottom: 15px;">
-          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">2. 방어 증거 및 무죄 논증</h4>
-          <p style="font-size: 11px; color: var(--accent-blue-mid); margin-bottom: 4px; font-weight: bold;">채택한 방어 증거: [${teamData.selectedEvidence.join(", ") || '없음'}]</p>
-          <div style="white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; min-height: 40px;">${teamData.argument || '방어 논증가가 작성 중입니다...'}</div>
-        </div>
-        <div style="margin-bottom: 15px;">
-          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">3. 위법수집증거 배제 이의제기 (배제 신청)</h4>
-          <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px; font-weight: bold;">제출한 이의제기 내역:</p>
-          <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; font-size:11.5px;">
-            ${teamData.objections.map((o, idx) => `
-              <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed #e2e8f0;">
-                <b>이의제기 #${idx+1} [증거 ${o.evidenceId}]</b> - 사유: ${o.lawLabel} (${o.result === 'sustained' ? '<span style="color:var(--color-jury); font-weight:bold;">✅인용배제</span>' : o.result === 'overruled' ? '<span style="color:var(--color-defense); font-weight:bold;">❌기각채택</span>' : '⏳심리중'})<br>
-                <span style="font-style: italic; color: var(--text-muted);">"${o.text}"</span>
-              </div>
-            `).join("") || '제출된 이의제기가 아직 없습니다.'}
+      ` : ""}
+      <div class="glass-card">
+        <h3 class="mb-10">① 기조 대변인 임무: 공소 제기 및 최초 변론 작성</h3>
+        <p class="mb-15" style="font-size:12.5px; color: var(--text-muted);">
+          사건 요약 및 피고인 강지민의 정보통신망법 위반(명예훼손) 공소내용을 요약하여 양측 기조 진술 단계에서 발표할 서면을 작성하세요.
+        </p>
+        <div class="form-group">
+          <div class="flex-row-between" style="margin-bottom: 8px;">
+            <label style="margin-bottom: 0;">기조 진술서 작성란</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" onclick="requestAiFeedback('prosecution-speaker')" style="font-size: 11.5px; padding: 4px 10px; height: auto; background: linear-gradient(135deg, #10b981, #047857); color: white; border-color: #059669; box-shadow: 0 2px 5px rgba(16,185,129,0.15); border-radius: 6px; cursor:pointer;">🤖 AI 피드백 받기</button>
+              <button type="button" onclick="showExampleGuide('prosecution-speaker')" style="font-size: 11.5px; padding: 4px 10px; height: auto; background: var(--bg-tertiary); border-color: rgba(37,99,235,0.15);">📋 예시 및 가이드 보기</button>
+            </div>
           </div>
+          <textarea id="p-opening-input" rows="7" placeholder="여기에 피고인의 죄목과 기조 변론 요지를 작성해 주세요..." oninput="updateLiveText('prosecution', 'opening', this.value)" ${isLocked ? 'disabled' : ''}>${pData.opening}</textarea>
         </div>
-        <div>
-          <h4 style="font-weight: bold; color: ${colorVar}; margin-bottom: 4px; font-size: 13px;">4. 피고인 최후 변론</h4>
-          <div style="white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; min-height: 40px;">${teamData.finalStatement || '최종 변론가가 작성 중입니다...'}</div>
+        <div class="flex-row-between">
+          <span style="font-size: 11.5px; color: var(--accent-blue-mid);">💡 모둠원들과 의견을 나누며 기조 진술을 작성하세요. 완료 시 내 역할 완료를 누릅니다.</span>
+          <button onclick="completeRoleTask('prosecution', 'isSpeakerDone')" class="primary" ${pData.isSpeakerDone ? 'disabled' : ''}>
+            ${pData.isSpeakerDone ? '제출 완료됨' : '내 역할 완료 (제출)'}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  // 2. 증거 분석관
+  else if (myRole === "analyst") {
+    const isLocked = currentStage < 3; // 단계별 잠금 해제
+    
+    container.innerHTML = `
+      ${isLocked ? `
+        <div class="lock-shield">
+          <h4>🔒 역할 잠금 상태</h4>
+          <p>
+            교사가 <b>3단계 [증거 조사 및 이의제기]</b>로 진입해야 활성화됩니다.
+          </p>
+        </div>
+      ` : ""}
+      <div class="glass-card">
+        <h3 class="mb-10">② 증거 분석관 임무: 적법 증거 채택 및 주논증 작성</h3>
+        <p class="mb-15" style="font-size:12.5px; color: var(--text-muted);">
+          증거 마켓에서 증거 카드를 클릭하여 내용을 읽고, <b>'적법 절차'</b>를 위반하지 않은 적법 증거만을 법정에 제출하세요.
+          동시에 제출할 증거가 피고인의 범죄 사실을 어떻게 명확히 입증하는지 주논증서를 상세히 기술하십시오.
+        </p>
+        
+        <h4 class="evidence-market-title">🛒 모의재판 증거 마켓 (사이버 명예훼손 시나리오)</h4>
+        <div class="evidence-grid" id="evidence-market-list">
+          <!-- 증거 목록 동적 생성 -->
+        </div>
+ 
+        <div class="form-group">
+          <div class="flex-row-between" style="margin-bottom: 8px;">
+            <label style="margin-bottom: 0;">공소사실 주논증 작성란 (제출된 증거에 대한 법적 의미 기술)</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" onclick="requestAiFeedback('prosecution-analyst')" style="font-size: 11.5px; padding: 4px 10px; height: auto; background: linear-gradient(135deg, #10b981, #047857); color: white; border-color: #059669; box-shadow: 0 2px 5px rgba(16,185,129,0.15); border-radius: 6px; cursor:pointer;">🤖 AI 피드백 받기</button>
+              <button type="button" onclick="showExampleGuide('prosecution-analyst')" style="font-size: 11.5px; padding: 4px 10px; height: auto; background: var(--bg-tertiary); border-color: rgba(37,99,235,0.15);">📋 예시 및 가이드 보기</button>
+            </div>
+          </div>
+          <textarea id="p-arg-input" rows="5" placeholder="선택한 적법 증거(예: E1, E3 등)들이 왜 유죄를 입증하는지 핵심 논증을 기록하세요..." oninput="updateLiveText('prosecution', 'argument', this.value)" ${pData.isAnalystDone ? 'disabled' : ''}>${pData.argument}</textarea>
+        </div>
         </div>
     `;
   }
@@ -1176,9 +1491,9 @@ function renderJuryWorkspace(workspace, data) {
 }
 
 // ----------------------------------------------------
-// 6단계: 배심원 평결 및 최종 결과 화면 (전원 공유)
+// 7단계: 배심원 평결 및 최종 결과 화면 (전원 공유)
 // ----------------------------------------------------
-function renderStage6Workspace(workspace, data) {
+function renderStage7Workspace(workspace, data) {
   const isJuror = myRole === "juror";
   const myVote = data.juryData.votes[myName];
 
@@ -1193,7 +1508,7 @@ function renderStage6Workspace(workspace, data) {
 
   workspace.innerHTML = `
     <div class="workspace-header">
-      <h2>6단계: 배심원 평결 및 최종 판결</h2>
+      <h2>7단계: 배심원 평결 및 최종 판결</h2>
       <span style="background: var(--accent-gold); color: #000;">판결</span>
     </div>
 

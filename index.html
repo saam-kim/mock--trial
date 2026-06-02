@@ -99,6 +99,9 @@
       <div id="wait-status-box">
         <p style="font-size: 15px; font-weight: 500;">교사의 역할 배정을 기다리고 있습니다...</p>
         <p id="my-assigned-badge" style="margin-top: 15px; font-size: 13px; color: var(--accent-gold-light); display: none;"></p>
+        <div style="margin-top: 20px;">
+          <button type="button" onclick="leaveWaitingRoom()" style="background: rgba(239, 68, 68, 0.1); color: var(--color-defense); border: 1px solid rgba(239, 68, 68, 0.2); font-size: 12px; padding: 6px 16px; border-radius: 6px; cursor: pointer;">🚪 대기실 나가기</button>
+        </div>
       </div>
 
       <div class="role-select-explanation" style="border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 10px;">
@@ -132,7 +135,7 @@
       
       <!-- 교사용 단계 전환 내비게이션 -->
       <div class="timeline-tracker" style="flex: 1; margin: 0 40px; justify-content: space-around;">
-        <div class="timeline-step active" data-stage="1" onclick="teacherChangeStage(1)" title="도입부">1</div>
+        <div class="timeline-step active" data-stage="1" onclick="teacherChangeStage(1)" title="도입/준비">1</div>
         <div class="timeline-step" data-stage="2" onclick="teacherChangeStage(2)" title="기조진술">2</div>
         <div class="timeline-step" data-stage="3" onclick="teacherChangeStage(3)" title="증거조사">3</div>
         <div class="timeline-step" data-stage="4" onclick="teacherChangeStage(4)" title="공방">4</div>
@@ -290,7 +293,8 @@
       
       <div class="session-info-badge">
         <span style="font-size: 12px; color: var(--text-muted); margin-right: 4px;">세션 번호</span>
-        <span id="student-session-code-val" style="color: var(--accent-blue-mid); font-weight: bold; font-family: 'Outfit'; cursor: pointer; padding: 4px 10px; background: var(--bg-tertiary); border-radius: 6px; border: 1px solid rgba(37,99,235,0.15);" onclick="copySessionCode()" title="클릭하면 클립보드에 복사됩니다">000000</span>
+        <span id="student-session-code-val" style="color: var(--accent-blue-mid); font-weight: bold; font-family: 'Outfit'; cursor: pointer; padding: 4px 10px; background: var(--bg-tertiary); border-radius: 6px; border: 1px solid rgba(37,99,235,0.15); margin-right: 10px;" onclick="copySessionCode()" title="클릭하면 클립보드에 복사됩니다">000000</span>
+        <button type="button" onclick="leaveWaitingRoom()" style="background: rgba(239, 68, 68, 0.1); color: var(--color-defense); border: 1px solid rgba(239, 68, 68, 0.2); font-size: 11px; padding: 4px 10px; height: auto; border-radius: 6px; cursor: pointer;">나가기</button>
       </div>
     </header>
 
@@ -476,6 +480,77 @@
       </div>
       <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
         <button onclick="closeExampleGuideModal()" class="primary">확인 및 가이드 닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ AI 피드백 모달 -->
+  <div id="ai-feedback-modal" class="guideline-overlay" style="display: none;">
+    <div class="guideline-container glass-card" style="width: 600px; max-height: 80%;">
+      <h2 style="color: var(--accent-blue-mid); font-size: 1.3rem; border-bottom: 2px solid var(--accent-blue-light); padding-bottom: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+        🤖 AI 법정 분석관의 실시간 피드백
+      </h2>
+      <div id="ai-feedback-content" class="guideline-body" style="margin-top: 15px;">
+        <!-- AI 피드백 내용 동적 삽입 -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+        <button onclick="closeAiFeedbackModal()" class="primary">피드백을 반영하여 수정하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ 교사용 시나리오 선택 모달 -->
+  <div id="scenario-select-modal" class="guideline-overlay" style="display: none;">
+    <div class="guideline-container glass-card" style="width: 700px; max-height: 90%;">
+      <h2 style="color: var(--accent-gold); font-size: 1.4rem; border-bottom: 2px solid var(--accent-gold); padding-bottom: 12px; font-weight: bold; text-align: center;">
+        ⚖️ 모의재판 수업 개설: 시나리오 선택
+      </h2>
+      <p style="font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 20px;">
+        개설할 모의재판의 사건 성격(형사/민사)과 시나리오를 선택하세요. 세션이 생성됩니다.
+      </p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; overflow-y: auto; max-height: 400px; padding: 5px;">
+        <!-- 형사 사건 그룹 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <h3 style="color: var(--color-defense); font-size: 14.5px; border-left: 3px solid var(--color-defense); padding-left: 8px; font-weight: bold;">🚨 형사 사건 (Criminal Case)</h3>
+          
+          <!-- 형사 1 -->
+          <div class="role-card-select" style="cursor: pointer; border-color: rgba(239, 68, 68, 0.15); margin-bottom: 5px;" onclick="selectAndStartSession('cyber-defamation')">
+            <h5 style="color: var(--color-defense); font-size: 13.5px;">1. 단톡방 유포 사건 (사이버 명예훼손)</h5>
+            <p style="font-size: 11.5px; margin-top: 4px; line-height: 1.4;">익명 SNS 및 단톡방에 유포된 허위 루머와 영장주의, 비밀녹음의 법적 증거 적법성을 다룹니다.</p>
+            <span style="display: inline-block; font-size: 10px; background: rgba(239, 68, 68, 0.1); color: var(--color-defense); padding: 2px 6px; border-radius: 4px; margin-top: 6px; font-weight: bold;">영장주의 · 비밀녹음 배제</span>
+          </div>
+
+          <!-- 형사 2 -->
+          <div class="role-card-select" style="cursor: pointer; border-color: rgba(239, 68, 68, 0.15);" onclick="selectAndStartSession('theft-search')">
+            <h5 style="color: var(--color-defense); font-size: 13.5px;">2. 노트북 절도 사건 (불법 강제 수사)</h5>
+            <p style="font-size: 11.5px; margin-top: 4px; line-height: 1.4;">교실 내 절도 의심 학생에 대한 영장 없는 수색 및 감금 자백 등 수사 절차적 하자 증거를 배제합니다.</p>
+            <span style="display: inline-block; font-size: 10px; background: rgba(239, 68, 68, 0.1); color: var(--color-defense); padding: 2px 6px; border-radius: 4px; margin-top: 6px; font-weight: bold;">영장주의 · 자백배제법칙</span>
+          </div>
+        </div>
+
+        <!-- 민사 사건 그룹 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <h3 style="color: var(--accent-blue-mid); font-size: 14.5px; border-left: 3px solid var(--accent-blue-mid); padding-left: 8px; font-weight: bold;">💼 민사 사건 (Civil Case)</h3>
+          
+          <!-- 민사 1 -->
+          <div class="role-card-select" style="cursor: pointer; border-color: rgba(37, 99, 235, 0.15); margin-bottom: 5px;" onclick="selectAndStartSession('noise-damage')">
+            <h5 style="color: var(--accent-blue-mid); font-size: 13.5px;">1. 층간소음 갈등 (손해배상 청구)</h5>
+            <p style="font-size: 11.5px; margin-top: 4px; line-height: 1.4;">층간소음 피해에 따른 불법행위 손해배상 소송. 사적 도청/비밀녹음의 민사 재판 증거 채택 쟁점을 다룹니다.</p>
+            <span style="display: inline-block; font-size: 10px; background: rgba(37, 99, 235, 0.1); color: var(--accent-blue-mid); padding: 2px 6px; border-radius: 4px; margin-top: 6px; font-weight: bold;">불법행위 배상 · 도청증거 배제</span>
+          </div>
+
+          <!-- 민사 2 -->
+          <div class="role-card-select" style="cursor: pointer; border-color: rgba(37, 99, 235, 0.15);" onclick="selectAndStartSession('portrait-damage')">
+            <h5 style="color: var(--accent-blue-mid); font-size: 13.5px;">2. SNS 초상권 침해 (사진 유포 피해)</h5>
+            <p style="font-size: 11.5px; margin-top: 4px; line-height: 1.4;">비방 목적의 조작된 사진 유포 및 초상권 침해 손해배상 소송. 도용폰/분실폰 유출 증거 검증을 다룹니다.</p>
+            <span style="display: inline-block; font-size: 10px; background: rgba(37, 99, 235, 0.1); color: var(--accent-blue-mid); padding: 2px 6px; border-radius: 4px; margin-top: 6px; font-weight: bold;">초상권 침해 · 기기도용 알리바이</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 25px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
+        <button onclick="closeScenarioSelectModal()" style="background: rgba(255,255,255,0.05); color: var(--text-muted); border-color: var(--glass-border);">취소</button>
       </div>
     </div>
   </div>
